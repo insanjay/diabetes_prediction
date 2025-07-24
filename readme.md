@@ -1,4 +1,4 @@
-# 🫀 Heart Disease Risk Prediction 
+# 🫀 Diabetes Risk Prediction 
 
 **Project is live here:** [Diabetes_Prediction](https://heartsafe.streamlit.app/)
 
