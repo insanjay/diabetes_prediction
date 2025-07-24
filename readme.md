@@ -1,5 +1,7 @@
 # 🫀 Heart Disease Risk Prediction 
 
+**Project is live here:** [Diabetes_Prediction](https://heartsafe.streamlit.app/)
+
 ## 📌 Version
 
 **v1.0** — Initial release with XGBoost model and Streamlit UI.  
