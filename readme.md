@@ -57,7 +57,13 @@ pip install pandas streamlit joblib
 ```bash
 streamlit run app.py
 ```
+## 📌 Note
 
+This repository is **intended** to experience the ML application built using Streamlit and the trained ML model on the UCI Diabetes dataset.
+
+To explore the **complete workflow** — from EDA to model development — including notebooks, datasets, requirements, visit the link below:
+
+- 🔗 **Project Workflow Repository:** [https://github.com/insanjay/diabetes_prediction](https://github.com/insanjay/diabetes_prediction_workflow)
 ---
 
 ## 👨‍💻 Author
