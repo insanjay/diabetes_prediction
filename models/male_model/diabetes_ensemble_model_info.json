@@ -1,0 +1,22 @@
+{
+  "model_type": "Stacking Ensemble",
+  "base_models": [
+    "XGBoost",
+    "Random Forest",
+    "SVM"
+  ],
+  "meta_learner": "Logistic Regression",
+  "accuracy": 0.8046,
+  "accuracy_percentage": "80.46%",
+  "improvement_over_original": "+31.92%",
+  "features": [
+    "age",
+    "bmi",
+    "family_diabetes"
+  ],
+  "recommended_threshold": 0.2,
+  "training_samples": 1705,
+  "test_samples": 307,
+  "created_date": "2025-10-02 16:47:02",
+  "model_status": "PRODUCTION_READY"
+}

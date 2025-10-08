@@ -1,0 +1,29 @@
+{
+  "model_type": "Stacking Ensemble",
+  "base_models": [
+    "XGBoost",
+    "Random Forest",
+    "SVM"
+  ],
+  "meta_learner": "Logistic Regression",
+  "accuracy": 0.7012987012987013,
+  "accuracy_percentage": "70.13%",
+  "cross_validation_mean_accuracy": 0.7425,
+  "cross_validation_std": 0.03172144385112377,
+  "auc_score": 0.763888888888889,
+  "threshold": 0.15000000000000002,
+  "f1_score_at_threshold": 0.6341463414634146,
+  "calibration": "none",
+  "brier_score_uncalibrated": 0.19632723605592908,
+  "brier_score_calibrated": 0.3441644137698531,
+  "features": [
+    "Pregnancies",
+    "BMI",
+    "DiabetesPedigreeFunction",
+    "Age"
+  ],
+  "training_samples": 800,
+  "test_samples": 154,
+  "created_date": "2025-10-03 07:23:32",
+  "model_status": "PRODUCTION_READY"
+}
