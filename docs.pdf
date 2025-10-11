@@ -1,0 +1,77 @@
+Diabetic Risk Checker: Web Application Documentation
+1. Project Goal & Overview
+The primary goal of this project is to create an intelligent, full-stack web application that provides personalized diabetes risk assessment. The application is designed to be secure, user-friendly, and scalable, enabling users to register, receive gender-specific predictions, and track their health history over time.
+
+The core of the application is a single-page web app built with Streamlit, supported by a robust backend layer for database management and user authentication, all written in Python.
+
+2. System Architecture
+The application follows an integrated architecture, where the frontend UI, backend logic, and database interactions are all managed within a single, cohesive Python environment powered by Streamlit. This approach was chosen for its rapid development capabilities and simplicity.
+
+The project is organized into distinct, modular components as shown in the structure below, which separates concerns and improves maintainability:
+
+.
+├── app.py              # Main application UI and control flow
+├── auth.py             # Handles password hashing and verification
+├── database/           # Contains all database-related modules
+│   ├── crud.py         # Functions for database operations (Create, Read, etc.)
+│   ├── database_setup.py # Engine and session configuration
+│   ├── models.py       # ORM class definitions for database tables
+│   └── schemas.py      # Pydantic models for data validation
+├── models/             # Contains the trained ML model files
+└── requirements.txt    # Project dependencies
+
+3. Technology Stack (Web Application)
+The web application is built on a stack chosen for its performance, ease of use, and scalability.
+
+Frontend (UI):
+
+Streamlit: A Python-native framework used to build the entire user interface. It was chosen for its ability to rapidly create interactive data applications directly from Python scripts, eliminating the need for separate HTML, CSS, or JavaScript development.
+
+Backend & Database:
+
+SQLAlchemy (ORM): Acts as the Object-Relational Mapper, providing a "Python-friendly" way to interact with the SQL database. It allows us to define our database tables as Python classes and query them using Python objects, which is cleaner and more secure than writing raw SQL.
+
+SQLite: A serverless, file-based SQL database engine. It was chosen for the initial version due to its simplicity, as it requires no separate server setup and is built into Python. The SQLAlchemy ORM ensures that the application can be easily migrated to a more powerful database like PostgreSQL in the future.
+
+Pydantic: Used for data validation and settings management. It defines the "shape" of incoming data (e.g., for user registration), ensuring that all data is valid before it's processed or saved to the database.
+
+Authentication:
+
+Passlib (with bcrypt): The industry-standard library used for secure password hashing. It ensures that user passwords are never stored in plain text, providing a critical layer of security.
+
+4. Core Features & Implementation
+The application is built around a set of core features designed to provide a seamless and secure user experience.
+
+4.1 User Authentication
+A full user authentication system is implemented to protect user data and provide a personalized experience.
+
+Registration: New users provide their name, email, gender, and password. The auth.py module hashes the password using bcrypt, and the crud.py module saves the new user to the users table in the database.
+
+Login: Returning users log in with their email and password. The application retrieves the user's stored hash from the database and uses auth.verify_password() to securely check if the provided password is correct.
+
+Session Management: The application uses Streamlit's st.session_state to manage the user's login status. Once a user successfully logs in, a flag (logged_in = True) and their user details (user_id, gender, etc.) are stored in the session state. The application's UI dynamically changes based on this state.
+
+4.2 Gender-Specific Prediction Interface
+The application's core innovation is its ability to use different models for male and female users.
+
+Dynamic UI: After a user logs in, their gender is retrieved from the session state. The prediction form in app.py uses a simple if statement to dynamically show or hide the "Number of Pregnancies" input field, ensuring users are only asked for relevant information.
+
+Model Selection Logic: A central function, get_prediction(), is responsible for handling the prediction logic. It takes the user's gender and input data, and an if/elif block selects the appropriate model (male or female) to use for the prediction.
+
+4.3 Personal History Dashboard
+Registered users can track their health journey through a personal history dashboard.
+
+Data Storage: After every successful prediction, the user's input data, the calculated BMI, and the prediction results are saved as a new entry in the health_readings table, linked to their user_id.
+
+Data Retrieval: The dashboard uses the crud.get_readings_for_user() function to query the database and retrieve all historical readings for the currently logged-in user.
+
+Display: The results are displayed in a clean, reverse-chronological table, showing the date, key metrics, and the prediction for each entry.
+
+5. ML Model Integration
+The web application seamlessly integrates the two pre-trained machine learning models.
+
+Model Loading: The male_model.pkl, female_model.pkl, and their associated preprocessor files (scaler, encoder) are stored in the models/ directory.
+
+Efficient Caching: The app.py script uses Streamlit's @st.cache_resource decorator to load these models into memory only once when the application starts. This is a crucial optimization that ensures predictions are fast and the application doesn't waste resources by reloading the models on every user interaction.
+
+Prediction Pipeline: The get_prediction() function acts as the central pipeline. It receives raw user input, creates a Pandas DataFrame, applies the correct preprocessing steps (like using the female_feature_scaler.pkl for female users), handles the case-sensitivity of feature names required by each model, and returns the final prediction and confidence score to the UI for display.
