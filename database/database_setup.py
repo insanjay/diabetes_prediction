@@ -1,20 +1,27 @@
+import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from .models import Base # Import the Base from our models.py file
+from .models import Base
 
-# Define the database file path. 
-# 'sqlite:///./diabetes_app.db' means the file will be created in the same directory.
-SQLALCHEMY_DATABASE_URL = "sqlite:///./diabetes_app.db"
+# This line loads the variables from your .env file into the environment
+load_dotenv()
 
-# Create the SQLAlchemy engine. 
-# The 'check_same_thread' argument is needed only for SQLite.
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+# Securely get credentials from environment variables
+POSTGRES_USER = "diabetes_app_user"
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+POSTGRES_DB = "diabetes_db"
+POSTGRES_HOST = "localhost" # This is correct for connecting to the local Docker container
+
+# Construct the database URL without hardcoding secrets
+SQLALCHEMY_DATABASE_URL = (
+    f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
 )
 
-# Create a SessionLocal class. Each instance of a SessionLocal will be a database session.
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# This function will be used to create the database tables.
 def create_db_and_tables():
     Base.metadata.create_all(bind=engine)
+

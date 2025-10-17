@@ -23,3 +23,17 @@ class UserCreate(BaseModel):
     email: Annotated[EmailStr, Field(..., description="Email address of the user(e.g. user@mail.com)")]
     password: Annotated[str, Field(..., description="User's password to login")]
     gender: Annotated[str, Field(..., description="Gender of the user(e.g. either male or female)")]
+
+
+class ChatHistoryCreate(BaseModel):
+    user_input: Annotated[str, Field(..., description="Input of the user")]
+    llm_response: Annotated[str, Field(..., description="Response of the llm")]
+
+class ChatHistory(BaseModel):
+    id: Annotated[int, Field(..., description="Chat id")]
+    user_id: Annotated[int, Field(..., description="Id of the user")]
+    user_input: Annotated[str, Field(..., description="Input of the user")]
+    llm_response: Annotated[str, Field(default=None, description="Response of the llm")]
+
+class Config:
+    orm_mode = True

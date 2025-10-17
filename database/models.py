@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text
 import pytz
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
@@ -25,6 +25,10 @@ class User(Base):
     # This creates a relationship to the HealthReading table
     readings = relationship("HealthReading", back_populates="owner")
 
+    # --- THIS IS THE FIX ---
+    # This adds the missing relationship to the ChatHistory table.
+    chats = relationship("ChatHistory", back_populates="owner")
+
 # Define the HealthReading table as a Python class
 class HealthReading(Base):
     __tablename__ = "health_readings"
@@ -32,7 +36,7 @@ class HealthReading(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     timestamp = Column(DateTime, default=lambda: datetime.now(india_tz))
-    # 
+    
     # Model features - common to both
     age = Column(Integer)
     bmi = Column(Float)
@@ -41,7 +45,6 @@ class HealthReading(Base):
 
     # Female-specific features (will be NULL for male users)
     Pregnancies = Column(Integer, nullable=True)
-    # DiabetesPedigreeFunction = Column(Float, nullable=True) kept this so that in future i may know that the female model and model doesn't have this feature name common
 
     # Prediction results
     prediction_result = Column(String, nullable=False)
@@ -49,3 +52,16 @@ class HealthReading(Base):
 
     # This creates a relationship back to the User table
     owner = relationship("User", back_populates="readings")
+
+class ChatHistory(Base):
+    __tablename__ = "chat_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    timestamp = Column(DateTime, default=lambda: datetime.now(india_tz))
+    user_input = Column(Text, nullable=False)
+    llm_response = Column(Text, nullable=False)
+
+    # This creates the relationship back to the User table
+    owner = relationship("User", back_populates="chats")
+

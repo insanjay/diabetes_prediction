@@ -72,3 +72,24 @@ def get_readings_for_user(db: Session, user_id: int, skip: int = 0, limit: int =
 #     db.commit()
 #     db.refresh(db_user)
 #     return db_user
+
+def create_chat_message(db: Session, chat_data: schemas.ChatHistory, user_id: int):
+    """
+    Create a new chat history record associated with a user and save it.
+    """
+
+    db_chat = models.ChatHistory(
+        user_id=user_id,
+        user_input=chat_data.user_input,
+        llm_response=chat_data.llm_response
+    )
+    db.add(db_chat)
+    db.commit()
+    db.refresh(db_chat)
+    return db_chat
+
+def get_chat_history_for_user(db: Session, user_id: int):
+    """
+    Retrieve all chat history for a specific user, ordered by timestamp.
+    """
+    return db.query(models.ChatHistory).filter(models.ChatHistory.user_id==user_id).order_by(models.ChatHistory.timestamp).all()
