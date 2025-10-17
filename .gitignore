@@ -1,0 +1,4 @@
+myenv/
+diabetes_app.db
+__pycache__
+database\__pycache__
