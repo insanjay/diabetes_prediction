@@ -1,0 +1,58 @@
+# .github/workflows/create-lambda-package.yml
+
+name: Create Lambda Deployment Package
+
+# This workflow runs automatically every time you push to the 'main' branch
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allows you to run this workflow manually from the Actions tab
+
+jobs:
+  build:
+    runs-on: ubuntu-latest # Use a standard Linux environment
+
+    steps:
+      # Step 1: Check out your repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up a Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' # Match the Python version for your Lambda function
+
+      # Step 3: Create a directory to hold the package contents
+      - name: Create package directory
+        run: mkdir package
+
+      # Step 4: Install all Python dependencies INTO the package directory
+      # This is the key step that replaces copying from 'site-packages'
+      - name: Install dependencies
+        run: pip install -r requirements.txt --target ./package
+
+      # Step 5: Copy your application code into the package directory
+      - name: Add application code to package
+        run: |
+          cp -r api/ ./package/
+          cp -r database/ ./package/
+          cp -r ui/ ./package/
+          cp app.py ./package/
+          cp auth.py ./package/
+          cp lambda_handler.py ./package/
+
+      # Step 6: Create the final ZIP file
+      - name: Create zip file
+        run: |
+          cd package
+          zip -r ../deployment_package.zip .
+
+      # Step 7: Upload the ZIP file as a build artifact
+      # This makes the file available for you to download
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-deployment-package
+          path: deployment_package.zip
