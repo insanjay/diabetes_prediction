@@ -1,27 +1,40 @@
 import os
-from dotenv import load_dotenv
+import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from .models import Base
+from dotenv import load_dotenv
 
-# This line loads the variables from your .env file into the environment
+# Load .env file for local development
 load_dotenv()
 
-# Securely get credentials from environment variables
-POSTGRES_USER = "diabetes_app_user"
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
-POSTGRES_DB = "diabetes_db"
-POSTGRES_HOST = "localhost" # This is correct for connecting to the local Docker container
+# --- SMART CONNECTION LOGIC ---
+# This block determines which database to connect to.
 
-# Construct the database URL without hardcoding secrets
-SQLALCHEMY_DATABASE_URL = (
-    f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
-)
+SQLALCHEMY_DATABASE_URL = None
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+# Check if running in a deployed Streamlit Cloud environment
+if hasattr(st, 'secrets') and "database" in st.secrets:
+    SQLALCHEMY_DATABASE_URL = st.secrets["database"]["url"]
+# Check if running in a deployed AWS Lambda environment
+elif 'DATABASE_URL' in os.environ:
+    SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+else:
+    # Fallback to local Docker database for development
+    db_password = os.getenv("POSTGRES_PASSWORD")
+    if db_password:
+        SQLALCHEMY_DATABASE_URL = f"postgresql://diabetes_app_user:{db_password}@localhost/diabetes_db"
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Proceed only if a database URL was determined
+if SQLALCHEMY_DATABASE_URL:
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+else:
+    # If no database is configured, raise an error to stop the app
+    raise ValueError("Database URL not configured. Please check your .env file or deployment secrets.")
+
 
 def create_db_and_tables():
-    Base.metadata.create_all(bind=engine)
-
+    """This function will be used to create the database tables."""
+    if engine:
+        Base.metadata.create_all(bind=engine)
