@@ -56,3 +56,6 @@ requirements1.txt
 llm_testing.py
 ui/LLM_chat copy.py
 test_db_connection.py
+lambda_requirements.txt
+lambda_package/
+structure.txt
