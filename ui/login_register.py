@@ -10,7 +10,7 @@ def show_login_register_forms(db):
     st.title("Welcome to the Diabetic Risk Checker")
     st.write("Please log in or register to continue.")
 
-    choice = st.selectbox("Choose an action", ["Login", "Register"])
+    choice = st.radio("Choose an action", ["Login", "Register"])
 
     if choice == "Login":
         with st.form("login_form"):
@@ -35,7 +35,7 @@ def show_login_register_forms(db):
         with st.form("register_form"):
             new_name = st.text_input("Name")
             new_email = st.text_input("Email")
-            new_gender = st.selectbox("Gender", ["Male", "Female"])
+            new_gender = st.radio("Gender", ["Male", "Female"])
             new_password = st.text_input("Password", type="password")
             submitted = st.form_submit_button("Register")
 

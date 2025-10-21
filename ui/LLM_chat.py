@@ -37,7 +37,7 @@ def show_llm_chat_page(db):
     # --- 1. API Configuration ---
     try:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-        model = genai.GenerativeModel('gemini-2.5-pro')
+        model = genai.GenerativeModel('gemini-2.5-flash-image')
     except Exception:
         st.error("Error configuring the AI service. Please check your API key in .streamlit/secrets.toml")
         st.stop()
