@@ -1,39 +1,67 @@
-# diabetes_project/schemas.py
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, Annotated
+# --- Token Schemas ---
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
-# pydantic model to update the user's info
-class UserUpdate(BaseModel):
-    name: Optional[str] = None
-    password: Optional[str] = None
+class TokenData(BaseModel):
+    email: Optional[str] = None
 
-# Pydantic model for creating a health reading
-class HealthReadingCreate(BaseModel):
-    age: Annotated[int, Field(..., gt=0, description="Age of the user")]
-    bmi: Annotated[float, Field(..., gt=0, description="BMI of the user")]
-    family_diabetes: Annotated[int, Field(default=0, ge=0, le=1, description="User family had diabetes- yes:1, no:0")]
-    Pregnancies: Optional[int] = Field(None, ge=0, description="Number of times a user (valid for females only) has been pregnant")
-    prediction_result: Annotated[str, Field(..., description="Prediction result from the model(e.g. Low risk, high risk)")]
-    prediction_score: Annotated[float, Field(..., description="Confidence score of the model on certain prediction(e.g.0.86/86%)")]
+# --- User Schemas ---
+class UserBase(BaseModel):
+    email: str
+    name: str
+    gender: str
 
-# Pydantic model for creating a new user
-class UserCreate(BaseModel):
-    name: Annotated[str, Field(..., description="Name of the user")]
-    email: Annotated[EmailStr, Field(..., description="Email address of the user(e.g. user@mail.com)")]
-    password: Annotated[str, Field(..., description="User's password to login")]
-    gender: Annotated[str, Field(..., description="Gender of the user(e.g. either male or female)")]
+# Model for CREATING a user (what we expect from the request)
+class UserCreate(UserBase):
+    password: str
 
+# Model for RESPONDING with a user (what we send back)
+# This is the 'User' model that was missing.
+# Notice it does NOT include the password.
+class User(UserBase):
+    id: int
 
-class ChatHistoryCreate(BaseModel):
-    user_input: Annotated[str, Field(..., description="Input of the user")]
-    llm_response: Annotated[str, Field(..., description="Response of the llm")]
+    class Config:
+        from_attributes = True  # Pydantic v2 syntax
 
-class ChatHistory(BaseModel):
-    id: Annotated[int, Field(..., description="Chat id")]
-    user_id: Annotated[int, Field(..., description="Id of the user")]
-    user_input: Annotated[str, Field(..., description="Input of the user")]
-    llm_response: Annotated[str, Field(default=None, description="Response of the llm")]
+# --- Health Reading Schemas ---
+class HealthReadingBase(BaseModel):
+    age: float
+    bmi: float
+    family_diabetes: int
+    Pregnancies: Optional[float] = None
+    prediction_result: str
+    prediction_score: float
 
-class Config:
-    orm_mode = True
+class HealthReadingCreate(HealthReadingBase):
+    pass
+
+class HealthReading(HealthReadingBase):
+    id: int
+    user_id: int  # <-- FIX: Changed from owner_id to match models.py
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True
+
+# --- Chat History Schemas ---
+class ChatHistoryBase(BaseModel):
+    user_input: str
+    llm_response: str
+
+class ChatHistoryCreate(ChatHistoryBase):
+    pass
+
+class ChatHistory(ChatHistoryBase):
+    id: int
+    user_id: int  # <-- FIX: Changed from owner_id to match models.py
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True
+

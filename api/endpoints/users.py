@@ -1,43 +1,54 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from datetime import timedelta
 
-# Note the relative imports to go up one directory level
-from ..dependencies import get_db
-# Import from the top-level directories
-from database import crud, schemas, models
-import auth
+from database import crud, schemas, database_setup
+from api import auth
 
-# Create a new router object. 
-# We can use this to group all user-related endpoints.
 router = APIRouter()
 
-# Define the response model for reading a user.
-# We don't want to expose the hashed_password.
-class User(schemas.UserCreate):
-    id: int
-    created_at: models.datetime
-
-    class Config:
-        orm_mode = True
-
-@router.post("/users/", response_model=User, status_code=status.HTTP_201_CREATED)
-def create_new_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+# --- User Registration Endpoint ---
+@router.post("/users", response_model=schemas.User, status_code=status.HTTP_201_CREATED)
+def create_new_user(user: schemas.UserCreate, db: Session = Depends(database_setup.get_db)):
     """
-    API endpoint to register a new user.
-    It receives user data, validates it using the UserCreate schema,
-    and saves the new user to the database.
+    Endpoint to create a new user.
+    FIX 1: Changed response_model to schemas.User (Hides password).
+    FIX 2: Simplified logic to pass the user schema directly to crud.
+           This fixes the 'gender' ValidationError.
     """
-    # Check if a user with this email already exists
     db_user = crud.get_user_by_email(db, email=user.email)
     if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Pass the user schema directly to crud.
+    # The crud function will handle hashing and saving.
+    return crud.create_user(db=db, user=user)
+
+# --- User Login Endpoint (for getting a token) ---
+@router.post("/token", response_model=schemas.Token)
+def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(), 
+    db: Session = Depends(database_setup.get_db)
+):
+    """
+    Endpoint to handle user login.
+    It authenticates the user and returns a JWT access token.
+    FIX: Added response_model=schemas.Token for clarity.
+    """
+    user = auth.authenticate_user(db, email=form_data.username, password=form_data.password)
+    if not user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Email already registered"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Hash the password before saving
-    hashed_password = auth.get_password_hash(user.password)
+    access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = auth.create_access_token(
+        data={"sub": str(user.id)},  # 'sub' is the user ID
+        expires_delta=access_token_expires
+    )
     
-    # Use the existing CRUD function to create the user
-    created_user = crud.create_user(db=db, user=user, hashed_password=hashed_password)
-    return created_user
+    return {"access_token": access_token, "token_type": "bearer"}
+

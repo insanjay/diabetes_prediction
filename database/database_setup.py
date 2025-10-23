@@ -52,7 +52,20 @@ else:
     raise ValueError("Database URL not configured. Please check your .env file or deployment secrets.")
 
 
+# --- ADD THIS FUNCTION ---
+# This function will be used by FastAPI to provide a database
+# session to your API endpoints (this fixes the AttributeError).
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+# --- END OF ADDED FUNCTION ---
+
+
 def create_db_and_tables():
     """This function will be used to create the database tables."""
     if engine:
         Base.metadata.create_all(bind=engine)
+

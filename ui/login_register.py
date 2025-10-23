@@ -1,6 +1,6 @@
 import streamlit as st
 from database import schemas, crud
-import auth
+import api.auth as auth
 
 def show_login_register_forms(db):
     """
