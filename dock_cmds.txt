@@ -1,0 +1,9 @@
+aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin 498504718203.dkr.ecr.eu-north-1.amazonaws.com
+
+$env:DOCKER_BUILDKIT=0
+
+docker build -t health-api-backend .
+
+docker tag health-api-backend:latest 498504718203.dkr.ecr.eu-north-1.amazonaws.com/health-api-backend:latest
+
+docker push 498504718203.dkr.ecr.eu-north-1.amazonaws.com/health-api-backend:latest

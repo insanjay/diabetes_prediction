@@ -1,6 +1,11 @@
+import os
 from fastapi import FastAPI
 from database import database_setup, models
 from .endpoints import users, LLM_Chat, predictions
+
+# --- THIS IS THE FIX ---
+from mangum import Mangum
+# --- END OF FIX ---
 
 # This command creates all the database tables if they don't exist
 models.Base.metadata.create_all(bind=database_setup.engine)
@@ -9,7 +14,7 @@ models.Base.metadata.create_all(bind=database_setup.engine)
 app = FastAPI(
     title="Diabetic Risk Assessment API",
     description="An API to manage users, health predictions, and chat history.",
-    version="3.0.2",
+    version="2.0.0",
 )
 
 # --- Include all the new routers from our endpoint files ---
@@ -31,3 +36,13 @@ def read_root():
     Root endpoint to provide a welcome message.
     """
     return {"message": "Welcome to the Diabetes Prediction API V2"}
+
+stage = os.environ.get("STAGE", "default")
+api_gateway_base_path = f"/{stage}"
+
+
+# This creates the "handler" that Lambda understands.
+# It wraps our FastAPI app in the Mangum translator.
+handler = Mangum(app, api_gateway_base_path=api_gateway_base_path)
+# --- END OF FIX ---
+

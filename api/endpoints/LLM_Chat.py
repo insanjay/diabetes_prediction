@@ -1,28 +1,31 @@
 import os
+from functools import lru_cache
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from huggingface_hub import InferenceClient
+from typing import List
 
 # Import all the necessary components
 from database import crud, schemas, database_setup
 from api import auth  # We can now import this directly since it's in the api/ folder
 
-# --- Configuration ---
-# Get the Hugging Face token from environment variables
-HF_TOKEN = os.getenv("HUGGINGFACE_TOKEN")
-if not HF_TOKEN:
-    print("Warning: HUGGINGFACE_TOKEN environment variable not set.")
-    # You might want to raise an error here if it's critical
-    
-# Initialize the Inference Client
-# We'll use a standard, reliable model as a placeholder
-try:
-    client = InferenceClient(token=HF_TOKEN)
-    MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.1"
-except Exception as e:
-    print(f"Error initializing InferenceClient: {e}")
-    client = None
+# model name
+MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.1"
+
+@lru_cache(maxsize=1)
+def get_hf_client():
+    """
+    Loads the HF client once and caches it.
+    This is called by the endpoint, not at init.
+    """
+    HF_TOKEN = os.getenv("HUGGINGFACE_TOKEN")
+    if not HF_TOKEN:
+        # This will cause a clean 500 error if the secret is missing
+        raise ValueError("HUGGINGFACE_TOKEN environment variable is not set.")
+    return InferenceClient(token=HF_TOKEN)
+
+
 
 # --- Pydantic Models for Request/Response ---
 # This defines what the frontend must send to us
@@ -41,7 +44,8 @@ router = APIRouter()
 def handle_chat_message(
     chat_request: ChatRequest, 
     db: Session = Depends(database_setup.get_db),
-    current_user: schemas.UserCreate = Depends(auth.get_current_user)
+    current_user: schemas.user = Depends(auth.get_current_user),
+    client: InferenceClient = Depends(get_hf_client)
 ):
     """
     Endpoint to handle a user's chat message.
@@ -78,3 +82,17 @@ def handle_chat_message(
     except Exception as e:
         print(f"Error during chat processing: {e}")
         raise HTTPException(status_code=500, detail="An error occurred while processing the AI response.")
+
+@router.get("/chat", response_model=List[schemas.ChatHistory])
+def get_chat_history(
+    db: Session = Depends(database_setup.get_db),
+    current_user: schemas.User = Depends(auth.get_current_user)
+    ):  
+    """
+    Endpoint to retrieve the chat history for the authenticated user.
+    """
+    history = crud.get_chat_history_for_user(db=db, user_id=current_user.id)
+    if not history:
+        # Return an empty list, not a 404, if there's no history
+        return []
+    return history

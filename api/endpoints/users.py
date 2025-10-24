@@ -52,3 +52,15 @@ def login_for_access_token(
     
     return {"access_token": access_token, "token_type": "bearer"}
 
+
+# --- ADD THIS FUNCTION TO: api/endpoints/users.py ---
+
+@router.get("/users/me", response_model=schemas.User)
+def read_users_me(current_user: schemas.User = Depends(auth.get_current_user)):
+    """
+    Endpoint to get the details of the currently authenticated user.
+    Uses the token to identify the user.
+    """
+    # The auth.get_current_user dependency already fetches the user
+    # based on the token. We just need to return it using the safe schema.
+    return current_user
