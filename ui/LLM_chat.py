@@ -1,29 +1,24 @@
 import streamlit as st
-import requests  # <-- Import requests
-
-# Note: Removed huggingface_hub, crud, schemas imports
+import requests
 
 # --- CONSTANTS ---
-# Define the strings used in the initial prompt to make filtering more reliable
-# We still need this to avoid displaying the hidden setup prompt if it's stored
 INITIAL_PROMPT_KEY_PHRASES = [
     "My name is",
     "my BMI is",
     "You are a helpful AI assistant"
 ]
 
-# --- HELPER FUNCTIONS (MODIFIED) ---
+# --- HELPER FUNCTIONS ---
 
 def is_initial_prompt(message_content):
     """Checks if a message is part of the initial, hidden context-setting prompt."""
-    # Ensure content is a string before checking
     if not isinstance(message_content, str):
         return False
     return any(phrase in message_content for phrase in INITIAL_PROMPT_KEY_PHRASES)
 
 # --- MAIN UI FUNCTION (REFACTORED) ---
 
-def show_llm_chat_page(): # Removed db parameter
+def show_llm_chat_page():
     """
     Displays the LLM chat interface and handles conversation logic
     by calling the backend API.
@@ -33,102 +28,110 @@ def show_llm_chat_page(): # Removed db parameter
     # --- 1. Get API URL and Token ---
     try:
         API_BASE_URL = st.secrets["API_BASE_URL"]
-        # Ensure the user is logged in and has a token
         if 'token' not in st.session_state:
-            st.error("You must be logged in to use the chat.")
-            st.stop()
+            st.error("Authentication token not found. Please log in again.")
+            return
         token = st.session_state.token
         headers = {"Authorization": f"Bearer {token}"}
+        chat_history_url = f"{API_BASE_URL}/api/v1/chat" # Define URL here
+        chat_api_url = f"{API_BASE_URL}/api/v1/chat"     # Same URL for POST
+
     except KeyError:
         st.error("API_BASE_URL is not set in Streamlit secrets. Cannot connect to backend.")
-        st.stop()
+        return
+    except Exception as e:
+        st.error(f"Error accessing secrets or session state: {e}")
+        return
 
-    # --- 2. Initialize Chat History in Session State ---
+    # --- 2. Initialize Chat History ---
     if "messages" not in st.session_state:
         st.session_state.messages = []
-        # --- NEW: Load existing chat history from the backend ---
-        chat_history_url = f"{API_BASE_URL}/api/v1/chat"
         try:
             with st.spinner("Loading chat history..."):
-                response = requests.get(chat_history_url, headers=headers)
+                response = requests.get(chat_history_url, headers=headers, timeout=10) # Add timeout
                 if response.status_code == 200:
-                    history = response.json() # Assuming API returns list of {"user_input": ..., "llm_response": ...}
+                    history = response.json()
                     for chat in history:
-                        # Add checks for None in case data loading has issues
                         user_input = chat.get("user_input")
                         llm_response = chat.get("llm_response")
                         if user_input is not None:
                              st.session_state.messages.append({"role": "user", "parts": [user_input]})
                         if llm_response is not None:
                              st.session_state.messages.append({"role": "model", "parts": [llm_response]})
-                elif response.status_code != 404: # Ignore 404 if no history exists
+                # Explicitly handle 405 error if GET /chat somehow isn't allowed by backend
+                elif response.status_code == 405:
+                     st.error(f"Error loading history: Method Not Allowed (GET request failed). Please check backend configuration.")
+                elif response.status_code == 401:
+                     st.error("Authentication failed while loading chat history. Please log in again.")
+                elif response.status_code != 404: # Ignore 404
                      st.warning(f"Could not load chat history (Error: {response.status_code}).")
 
+        except requests.exceptions.Timeout:
+             st.warning("Loading chat history timed out.")
         except requests.exceptions.RequestException as e:
             st.warning(f"Network error loading chat history: {e}")
+        except Exception as e: # Catch any other unexpected errors during init
+            st.error(f"An unexpected error occurred during chat initialization: {e}")
 
-        # If still no messages after loading, display a welcome (no initial API call needed)
+
+        # If still no messages after loading, display a welcome
         if not st.session_state.messages:
              st.session_state.messages.append({"role": "model", "parts": ["Hello! How can I help you with your health and wellness questions today? Remember, I cannot give medical advice."]})
-             # No st.rerun needed here, will display on first load
 
-    # --- 3. Save Chat Button (REMOVED) ---
-    # The backend /chat endpoint now saves automatically on each message.
-
-    # --- 4. Display Chat History ---
+    # --- 3. Display Chat History ---
     for message in st.session_state.messages:
-        # Don't display the initial long context prompt if it exists
         if message["parts"] and message["parts"][0] and is_initial_prompt(message["parts"][0]):
             continue
 
-        # Display role as "You" or "AI Assistant"
         role_display_name = "You" if message["role"] == "user" else "AI Assistant"
         with st.chat_message(role_display_name):
-             # Handle potential None values if history loading failed partially
              content = message["parts"][0] if message["parts"] and message["parts"][0] else "*message error*"
              st.markdown(content)
 
 
-    # --- 5. Handle New User Input ---
+    # --- 4. Handle New User Input ---
     if prompt := st.chat_input("Ask a health-related question..."):
-        # Add user's new message to state and display it
         st.session_state.messages.append({"role": "user", "parts": [prompt]})
         with st.chat_message("You"):
             st.markdown(prompt)
 
-        # --- NEW: Get response from the backend API ---
-        chat_api_url = f"{API_BASE_URL}/api/v1/chat"
+        # Get response from the backend API
         payload = {"prompt": prompt}
 
         try:
             with st.spinner("AI is thinking..."):
-                response = requests.post(chat_api_url, headers=headers, json=payload)
+                response = requests.post(chat_api_url, headers=headers, json=payload, timeout=30) # Add timeout
 
                 if response.status_code == 200:
                     response_data = response.json()
                     response_text = response_data.get("response", "Error: No response text found.")
 
-                    # Display AI's response
                     with st.chat_message("AI Assistant"):
                         st.markdown(response_text)
-
-                    # Add AI's response to the session state
                     st.session_state.messages.append({"role": "model", "parts": [response_text]})
 
+                # --- IMPROVED ERROR REPORTING ---
                 else:
-                     st.error(f"Error getting AI response (Status: {response.status_code}).")
-                     try:
-                         st.error(f"Details: {response.json().get('detail', 'No details provided.')}")
-                     except: pass
-                     # Consider removing the user's failed message for cleaner UI
-                     # st.session_state.messages.pop()
+                     error_detail = "No details provided."
+                     try: # Try to get detail from JSON response
+                         error_detail = response.json().get('detail', error_detail)
+                     except requests.exceptions.JSONDecodeError:
+                         error_detail = response.text # Show raw text if not JSON
+                     st.error(f"Error getting AI response (Status: {response.status_code}). Detail: {error_detail}")
+                     # Remove the user's message if API call failed
+                     st.session_state.messages.pop()
 
+
+        except requests.exceptions.Timeout:
+            st.error("The AI service timed out. Please try again.")
+            st.session_state.messages.pop()
         except requests.exceptions.RequestException as e:
             st.error(f"Network error communicating with the AI: {e}")
-            # Consider removing the user's failed message for cleaner UI
-            # st.session_state.messages.pop()
+            st.session_state.messages.pop()
+        except Exception as e: # Catch unexpected errors
+             st.error(f"An unexpected error occurred: {e}")
+             st.session_state.messages.pop()
 
-        # --- THIS IS THE FIX ---
-        # REMOVED st.rerun() which might cause unexpected state/requests on reload
-        # --- END OF FIX ---
+        # Rerun AFTER processing the response/error to update the display cleanly
+        st.rerun()
 
