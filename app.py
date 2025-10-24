@@ -1,52 +1,27 @@
 import streamlit as st
-import joblib
+import requests # Need requests for initial check maybe? Or maybe not needed here.
 
-# Database components
-from database.database_setup import SessionLocal, create_db_and_tables
+# --- Remove all database imports ---
+# from database.database_setup import SessionLocal, create_db_and_tables # REMOVED
 
-# --- Import all our new UI modules ---
+# --- Import only the UI modules ---
 from ui.login_register import show_login_register_forms
-from ui.form_and_ouput import show_main_dashboard
-from ui.LLM_chat import show_llm_chat_page
+from ui.form_and_ouput import show_main_dashboard # Corrected filename if needed
+from ui.LLM_chat import show_llm_chat_page # Corrected filename if needed
 
 # --- 1. INITIALIZATION & SETUP ---
 
 st.set_page_config(page_title="Diabetic Risk Check", layout="centered")
 
-# This is a one-time setup to create the database tables if they don't exist.
-create_db_and_tables()
+# --- REMOVED Database setup ---
+# create_db_and_tables() # REMOVED
+# db = SessionLocal() # REMOVED
 
-# Create a single database session when the script starts.
-db = SessionLocal()
+# --- REMOVED Model Loading ---
+# Models are now loaded by the backend API.
+# The @st.cache_resource function and calls are removed.
 
-# --- 2. MODEL LOADING ---
-
-@st.cache_resource
-def load_models_and_preprocessors():
-    """
-    Loads all models and preprocessors from disk once at startup.
-    """
-    try:
-        # Load male model components
-        with open("models/male_model/diabetes_stacking_ensemble_model.pkl", "rb") as f:
-            male_model = joblib.load(f)
-        with open("models/male_model/diabetes_label_encoder_final.pkl", "rb") as f:
-            male_encoder = joblib.load(f)
-        
-        # Load female model components
-        with open("models/female_model/female_final_ensemble_model.pkl", "rb") as f:
-            female_model = joblib.load(f)
-        with open("models/female_model/female_feature_scaler.pkl", "rb") as f:
-            female_scaler = joblib.load(f)
-            
-        return male_model, male_encoder, female_model, female_scaler
-    except FileNotFoundError:
-        st.error("One or more model files were not found. Please ensure the 'models' directory is correct.")
-        return None, None, None, None
-
-models = load_models_and_preprocessors()
-
-# --- 3. SESSION STATE & UI ROUTING ---
+# --- 2. SESSION STATE & UI ROUTING ---
 
 # Initialize session state if it doesn't exist
 if 'logged_in' not in st.session_state:
@@ -54,25 +29,25 @@ if 'logged_in' not in st.session_state:
 
 # --- Main App Logic ---
 if not st.session_state.logged_in:
-    # If not logged in, show the login/register page
-    show_login_register_forms(db)
+    # Show login/register page (no longer needs 'db')
+    show_login_register_forms()
 else:
     # If logged in, show the sidebar navigation and main app
     st.sidebar.title(f"Welcome, {st.session_state.get('user_name', '')}")
-    
-    page = st.sidebar.radio("Navigation", ["Prediction Dashboard", "AI Health Chat"])
-    
-    if page == "Prediction Dashboard":
-        if models[0]: # Check if models loaded successfully
-            show_main_dashboard(db, models)
-    
-    elif page == "AI Health Chat":
-        show_llm_chat_page(db)
 
-    # --- THIS IS THE FIX ---
-    # We add a unique key to the logout button to prevent the duplicate ID error.
-    if st.sidebar.button("Logout", key="main_logout_button"):
-        for key in st.session_state.keys():
+    page = st.sidebar.radio("Navigation", ["Prediction Dashboard", "AI Health Chat"])
+
+    if page == "Prediction Dashboard":
+        # Show dashboard (no longer needs 'db' or 'models')
+        show_main_dashboard()
+
+    elif page == "AI Health Chat":
+        # Show chat page (no longer needs 'db')
+        show_llm_chat_page()
+
+    # Logout button - Ensure key is unique if used elsewhere
+    if st.sidebar.button("Logout", key="app_logout_button"):
+        # Clear all session state keys to log out
+        for key in list(st.session_state.keys()): # Use list() to avoid RuntimeError
             del st.session_state[key]
         st.rerun()
-
