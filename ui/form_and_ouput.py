@@ -39,8 +39,6 @@ def show_main_dashboard():
 
     # --- Prediction Form ---
     st.header("Make a New Prediction")
-    # Define placeholder AFTER the form
-    prediction_result_placeholder = st.empty()
 
     with st.form("prediction_form"):
         st.write("Please enter the following health metrics:")
@@ -66,6 +64,13 @@ def show_main_dashboard():
              if user_gender == "Female":
                  st.session_state.form_pregnancies = pregnancies
 
+             # Clear previous results/errors before making new call
+             st.session_state.pop("prediction_error", None)
+             st.session_state.pop("last_prediction_result", None)
+             st.session_state.pop("last_prediction_score", None)
+             st.session_state.pop("last_prediction_message", None)
+
+
              # --- Call the /predict endpoint ---
              predict_url = f"{API_BASE_URL}/api/v1/predict"
              payload = {
@@ -83,63 +88,50 @@ def show_main_dashboard():
                          # --- STORE result in session state ---
                          st.session_state.last_prediction_result = prediction_data.get("prediction_result")
                          st.session_state.last_prediction_score = prediction_data.get("prediction_score")
-                         st.session_state.last_prediction_message = "Your prediction has been saved to your history."
-                         st.session_state.prediction_error = None # Clear previous errors
-                         # Trigger immediate rerun to display result and refresh history section
-                         st.rerun()
+                         st.session_state.last_prediction_message = "Your prediction has been saved." # Simplified message
 
                      # --- Handle errors by storing them in session state ---
                      elif response.status_code == 400:
                           st.session_state.prediction_error = f"Prediction failed: {response.json().get('detail', 'Invalid input.')}"
                      elif response.status_code == 401:
-                          st.session_state.prediction_error = "Authentication failed. Please log out and log back in."
+                          st.session_state.prediction_error = "Authentication error. Please log out and log back in."
                      else:
                          detail = "No details provided."
                          try: detail = response.json().get('detail', detail)
                          except: pass
-                         st.session_state.prediction_error = f"Prediction failed. Status code: {response.status_code}. Details: {detail}"
-                     # Clear previous results if error occurred
-                     st.session_state.last_prediction_result = None
-                     st.session_state.last_prediction_score = None
-                     st.session_state.last_prediction_message = None
-                     st.rerun() # Rerun to display the error
+                         st.session_state.prediction_error = f"Prediction failed (Status {response.status_code}). Details: {detail}"
 
              except requests.exceptions.RequestException as e:
                  st.session_state.prediction_error = f"Network error during prediction: {e}"
-                 st.session_state.last_prediction_result = None
-                 st.session_state.last_prediction_score = None
-                 st.session_state.last_prediction_message = None
-                 st.rerun() # Rerun to display the error
 
-    # --- Display Stored Prediction Result/Error (AFTER the form) ---
-    # This block runs every time, including after a rerun
+             # Trigger rerun AFTER processing API response (success or error)
+             st.rerun()
+
+    # --- FIX: Define placeholder and display results AFTER the form ---
+    prediction_result_placeholder = st.empty()
+    # This block runs every time, including after a rerun triggered by submission
     if st.session_state.get("prediction_error"):
         prediction_result_placeholder.error(st.session_state.prediction_error)
-        # Clear error after displaying once? Optional, depends on desired UX
-        # del st.session_state.prediction_error
+        # Clear error after displaying once so it doesn't persist forever
+        st.session_state.pop("prediction_error", None)
     elif st.session_state.get("last_prediction_result"):
         with prediction_result_placeholder.container():
             st.success(f"### Prediction Result: **{st.session_state.last_prediction_result}**")
             st.success(f"Confidence Score: **{st.session_state.last_prediction_score*100:.2f}%**")
             st.info(st.session_state.last_prediction_message)
-        # Clear result after displaying once? Optional.
-        # del st.session_state.last_prediction_result
-        # del st.session_state.last_prediction_score
-        # del st.session_state.last_prediction_message
+        # Clear result after displaying once so it doesn't persist forever
+        st.session_state.pop("last_prediction_result", None)
+        st.session_state.pop("last_prediction_score", None)
+        st.session_state.pop("last_prediction_message", None)
 
 
     # --- History Display ---
     st.header("Your Prediction History")
 
-    # --- Refresh Button Logic ---
-    # We don't need a separate button if submitting the form triggers a refresh.
-    # If you still want manual refresh:
-    # if st.button("Refresh History"):
-    #    st.rerun()
-
     readings_url = f"{API_BASE_URL}/api/v1/readings"
     history_data = []
     error_loading_history = None
+    readings = [] # Define readings outside the `if` block
 
     try:
         with st.spinner("Loading prediction history..."):
@@ -150,13 +142,18 @@ def show_main_dashboard():
                 if readings:
                     if not DATEUTIL_AVAILABLE:
                          st.error("Dependency missing: Please add 'python-dateutil' to your root requirements.txt to display dates correctly.")
-                         history_data = readings
+                         history_data = readings # Show raw if parsing fails
                     else:
                         try:
-                            sorted_readings = sorted(readings, key=lambda r: parser.parse(r.get('timestamp', '1970-01-01T00:00:00Z')), reverse=True)
+                            # Ensure timestamp is string before parsing
+                            sorted_readings = sorted(
+                                readings,
+                                key=lambda r: parser.parse(r.get('timestamp', '1970-01-01T00:00:00Z')) if isinstance(r.get('timestamp'), str) else datetime.min.replace(tzinfo=timezone.utc),
+                                reverse=True
+                            )
                             history_data = [
                                 {
-                                    "Date": parser.parse(r.get('timestamp', '')).strftime("%d-%m-%Y %H:%M") if r.get('timestamp') else "N/A",
+                                    "Date": parser.parse(r.get('timestamp', '')).strftime("%d-%m-%Y %H:%M") if r.get('timestamp') and isinstance(r.get('timestamp'), str) else "N/A",
                                     "Age": r.get("age", "N/A"), "BMI": r.get("bmi", "N/A"),
                                     "Prediction": r.get("prediction_result", "N/A"),
                                     "Score": f"{r.get('prediction_score', 0)*100:.2f}%" if r.get('prediction_score') is not None else "N/A"
@@ -165,7 +162,7 @@ def show_main_dashboard():
                             ]
                         except Exception as e:
                             st.error(f"Error processing history data: {e}")
-                            st.exception(e)
+                            st.exception(e) # Show full traceback
                             error_loading_history = f"Error processing history: {e}"
                             history_data = readings # Show raw on processing error
 
@@ -175,13 +172,13 @@ def show_main_dashboard():
             elif response.status_code == 404:
                  error_loading_history = None # No history is not an error
             else:
-                 st.warning(f"Could not load prediction history (Error: {response.status_code}).")
+                 st.warning(f"Could not load prediction history (Error: {response.status_code}). Details: {response.text}")
                  error_loading_history = f"API Error {response.status_code}"
 
     except requests.exceptions.RequestException as e:
         st.warning(f"Network error loading prediction history: {e}")
         error_loading_history = f"Network Error: {e}"
-    except Exception as e:
+    except Exception as e: # Catch-all for other errors
         st.error(f"An unexpected error occurred while loading history: {e}")
         st.exception(e)
         error_loading_history = f"Unexpected Error: {e}"
@@ -197,7 +194,8 @@ def show_main_dashboard():
     elif error_loading_history:
          st.warning(f"Could not display history due to previous error: {error_loading_history}")
     else:
-        # Only show this if there was truly no history after a successful load attempt
-        if 'response' in locals() and (response.status_code == 404 or (response.status_code == 200 and not readings)):
+        # Check status code exists before accessing
+        response_status_code = response.status_code if 'response' in locals() else None
+        if response_status_code == 404 or (response_status_code == 200 and not readings):
              st.write("You have no prediction history yet.")
 
