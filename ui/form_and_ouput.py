@@ -1,48 +1,37 @@
 import streamlit as st
-import requests  # <-- Import requests
-import pandas as pd # Still needed for displaying history table
-# We wrap dateutil import in a try-except to handle potential ImportError
+import requests
+import pandas as pd
 try:
     from dateutil import parser
     DATEUTIL_AVAILABLE = True
 except ImportError:
     DATEUTIL_AVAILABLE = False
 
-
 # --- MAIN UI FUNCTION ---
 
-def show_main_dashboard(): # Removed db and models parameters
+def show_main_dashboard():
     """
     Displays the main prediction form and user history dashboard, using API calls.
     """
     # --- 1. Get API URL and Token ---
     try:
         API_BASE_URL = st.secrets["API_BASE_URL"]
-        # Ensure the user is logged in and has a token
         if 'token' not in st.session_state or not st.session_state.get('logged_in'):
             st.error("You must be logged in to view the dashboard.")
-            # st.stop() # Use return instead of st.stop() in functions
             return
         token = st.session_state.token
         headers = {"Authorization": f"Bearer {token}"}
     except KeyError:
-        st.error("API_BASE_URL is not set in Streamlit secrets. Cannot connect to backend.")
-        # st.stop()
+        st.error("API_BASE_URL is not set in Streamlit secrets.")
         return
     except Exception as e:
         st.error(f"Error accessing secrets or session state: {e}")
-        # st.stop()
         return
 
-
     # --- Sidebar ---
-    # Display user info loaded during login
     st.sidebar.title(f"Welcome, {st.session_state.get('user_name', 'User')}")
-
-    # Logout button needs a unique key if it appears elsewhere
     if st.sidebar.button("Logout", key="dashboard_logout_button"):
-        # Clear all session state keys to log out
-        for key in list(st.session_state.keys()): # Use list() to avoid RuntimeError
+        for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.rerun()
 
@@ -50,11 +39,12 @@ def show_main_dashboard(): # Removed db and models parameters
 
     # --- Prediction Form ---
     st.header("Make a New Prediction")
-    prediction_result_placeholder = st.empty() # Create placeholder for results
+    # Define placeholder AFTER the form
+    prediction_result_placeholder = st.empty()
 
     with st.form("prediction_form"):
         st.write("Please enter the following health metrics:")
-        # --- Form Inputs ---
+        # --- Form Inputs (using session state to preserve values) ---
         age = st.number_input("Age", min_value=1, max_value=120, step=1, value=st.session_state.get("form_age", 30))
         height_cm = st.number_input("Height (in cm)", min_value=50.0, max_value=250.0, step=0.5, value=st.session_state.get("form_height", 170.0))
         weight_kg = st.number_input("Weight (in kg)", min_value=10.0, max_value=300.0, step=0.1, value=st.session_state.get("form_weight", 70.0))
@@ -68,7 +58,7 @@ def show_main_dashboard(): # Removed db and models parameters
         submitted = st.form_submit_button("Get Prediction")
 
         if submitted:
-             # Store form values in session state to persist them after rerun
+             # Store form values in session state
              st.session_state.form_age = age
              st.session_state.form_height = height_cm
              st.session_state.form_weight = weight_kg
@@ -79,11 +69,8 @@ def show_main_dashboard(): # Removed db and models parameters
              # --- Call the /predict endpoint ---
              predict_url = f"{API_BASE_URL}/api/v1/predict"
              payload = {
-                 "gender": user_gender,
-                 "age": float(age),
-                 "height_cm": float(height_cm),
-                 "weight_kg": float(weight_kg),
-                 "family_history": int(family_history),
+                 "gender": user_gender, "age": float(age), "height_cm": float(height_cm),
+                 "weight_kg": float(weight_kg), "family_history": int(family_history),
                  "pregnancies": int(pregnancies)
              }
 
@@ -93,87 +80,100 @@ def show_main_dashboard(): # Removed db and models parameters
 
                      if response.status_code == 200:
                          prediction_data = response.json()
-                         prediction_result_text = prediction_data.get("prediction_result")
-                         prediction_score_val = prediction_data.get("prediction_score")
+                         # --- STORE result in session state ---
+                         st.session_state.last_prediction_result = prediction_data.get("prediction_result")
+                         st.session_state.last_prediction_score = prediction_data.get("prediction_score")
+                         st.session_state.last_prediction_message = "Your prediction has been saved to your history."
+                         st.session_state.prediction_error = None # Clear previous errors
+                         # Trigger immediate rerun to display result and refresh history section
+                         st.rerun()
 
-                         # Display results in the placeholder
-                         with prediction_result_placeholder.container():
-                             st.success(f"### Prediction Result: **{prediction_result_text}**")
-                             st.success(f"Confidence Score: **{prediction_score_val*100:.2f}%**")
-                             st.info("Your prediction has been saved to your history.")
-                         # We set a flag to indicate a refresh might be needed
-                         st.session_state.history_needs_refresh = True
-
+                     # --- Handle errors by storing them in session state ---
                      elif response.status_code == 400:
-                          prediction_result_placeholder.error(f"Prediction failed: {response.json().get('detail', 'Invalid input.')}")
+                          st.session_state.prediction_error = f"Prediction failed: {response.json().get('detail', 'Invalid input.')}"
                      elif response.status_code == 401:
-                          prediction_result_placeholder.error("Authentication failed. Please log out and log back in.")
+                          st.session_state.prediction_error = "Authentication failed. Please log out and log back in."
                      else:
-                         prediction_result_placeholder.error(f"Prediction failed. Status code: {response.status_code}")
-                         try:
-                             prediction_result_placeholder.error(f"Details: {response.json().get('detail', 'No details provided.')}")
+                         detail = "No details provided."
+                         try: detail = response.json().get('detail', detail)
                          except: pass
+                         st.session_state.prediction_error = f"Prediction failed. Status code: {response.status_code}. Details: {detail}"
+                     # Clear previous results if error occurred
+                     st.session_state.last_prediction_result = None
+                     st.session_state.last_prediction_score = None
+                     st.session_state.last_prediction_message = None
+                     st.rerun() # Rerun to display the error
 
              except requests.exceptions.RequestException as e:
-                 prediction_result_placeholder.error(f"Network error during prediction: {e}")
+                 st.session_state.prediction_error = f"Network error during prediction: {e}"
+                 st.session_state.last_prediction_result = None
+                 st.session_state.last_prediction_score = None
+                 st.session_state.last_prediction_message = None
+                 st.rerun() # Rerun to display the error
+
+    # --- Display Stored Prediction Result/Error (AFTER the form) ---
+    # This block runs every time, including after a rerun
+    if st.session_state.get("prediction_error"):
+        prediction_result_placeholder.error(st.session_state.prediction_error)
+        # Clear error after displaying once? Optional, depends on desired UX
+        # del st.session_state.prediction_error
+    elif st.session_state.get("last_prediction_result"):
+        with prediction_result_placeholder.container():
+            st.success(f"### Prediction Result: **{st.session_state.last_prediction_result}**")
+            st.success(f"Confidence Score: **{st.session_state.last_prediction_score*100:.2f}%**")
+            st.info(st.session_state.last_prediction_message)
+        # Clear result after displaying once? Optional.
+        # del st.session_state.last_prediction_result
+        # del st.session_state.last_prediction_score
+        # del st.session_state.last_prediction_message
+
 
     # --- History Display ---
     st.header("Your Prediction History")
 
-    # --- ADD REFRESH BUTTON ---
-    # Button to explicitly reload history data
-    if st.button("Refresh History"):
-        # Clear any cached data if necessary (optional)
-        # st.cache_data.clear() # If using st.cache_data for history
-        st.rerun() # Rerun the script to trigger the fetch below
-
-    # Remove the automatic debug message
-    # st.write("Attempting to load history...")
+    # --- Refresh Button Logic ---
+    # We don't need a separate button if submitting the form triggers a refresh.
+    # If you still want manual refresh:
+    # if st.button("Refresh History"):
+    #    st.rerun()
 
     readings_url = f"{API_BASE_URL}/api/v1/readings"
     history_data = []
     error_loading_history = None
 
-    # This block will now run every time the page loads or Refresh is clicked
     try:
         with st.spinner("Loading prediction history..."):
             response = requests.get(readings_url, headers=headers)
-            # st.write(f"GET /readings status code: {response.status_code}") # Keep for debug if needed
 
             if response.status_code == 200:
                 readings = response.json()
-                # st.write(f"Received {len(readings)} readings from API.")
                 if readings:
                     if not DATEUTIL_AVAILABLE:
                          st.error("Dependency missing: Please add 'python-dateutil' to your root requirements.txt to display dates correctly.")
                          history_data = readings
                     else:
                         try:
-                            # st.write("Attempting to parse and sort history...")
                             sorted_readings = sorted(readings, key=lambda r: parser.parse(r.get('timestamp', '1970-01-01T00:00:00Z')), reverse=True)
                             history_data = [
                                 {
                                     "Date": parser.parse(r.get('timestamp', '')).strftime("%d-%m-%Y %H:%M") if r.get('timestamp') else "N/A",
-                                    "Age": r.get("age", "N/A"),
-                                    "BMI": r.get("bmi", "N/A"),
+                                    "Age": r.get("age", "N/A"), "BMI": r.get("bmi", "N/A"),
                                     "Prediction": r.get("prediction_result", "N/A"),
                                     "Score": f"{r.get('prediction_score', 0)*100:.2f}%" if r.get('prediction_score') is not None else "N/A"
                                 }
                                 for r in sorted_readings
                             ]
-                            # st.write("History processed successfully.")
                         except Exception as e:
                             st.error(f"Error processing history data: {e}")
                             st.exception(e)
                             error_loading_history = f"Error processing history: {e}"
-                            history_data = readings
+                            history_data = readings # Show raw on processing error
 
             elif response.status_code == 401:
                  st.error("Authentication failed while fetching history.")
                  error_loading_history = "Authentication failed"
             elif response.status_code == 404:
-                 # st.write("No prediction history found (404).") # Less prominent message now
-                 error_loading_history = None
+                 error_loading_history = None # No history is not an error
             else:
                  st.warning(f"Could not load prediction history (Error: {response.status_code}).")
                  error_loading_history = f"API Error {response.status_code}"
@@ -186,16 +186,14 @@ def show_main_dashboard(): # Removed db and models parameters
         st.exception(e)
         error_loading_history = f"Unexpected Error: {e}"
 
-
     # Display the table or appropriate message
     if history_data:
-        # st.write("Displaying history table...")
         try:
             df = pd.DataFrame(history_data)
             st.dataframe(df.set_index("Date"))
         except Exception as e:
              st.error(f"Error displaying history dataframe: {e}")
-             st.write("Raw history data:", history_data)
+             st.write("Raw history data:", history_data) # Show raw if df fails
     elif error_loading_history:
          st.warning(f"Could not display history due to previous error: {error_loading_history}")
     else:
