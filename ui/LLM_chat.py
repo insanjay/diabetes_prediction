@@ -54,8 +54,13 @@ def show_llm_chat_page(): # Removed db parameter
                 if response.status_code == 200:
                     history = response.json() # Assuming API returns list of {"user_input": ..., "llm_response": ...}
                     for chat in history:
-                        st.session_state.messages.append({"role": "user", "parts": [chat.get("user_input")]})
-                        st.session_state.messages.append({"role": "model", "parts": [chat.get("llm_response")]})
+                        # Add checks for None in case data loading has issues
+                        user_input = chat.get("user_input")
+                        llm_response = chat.get("llm_response")
+                        if user_input is not None:
+                             st.session_state.messages.append({"role": "user", "parts": [user_input]})
+                        if llm_response is not None:
+                             st.session_state.messages.append({"role": "model", "parts": [llm_response]})
                 elif response.status_code != 404: # Ignore 404 if no history exists
                      st.warning(f"Could not load chat history (Error: {response.status_code}).")
 
@@ -80,7 +85,7 @@ def show_llm_chat_page(): # Removed db parameter
         role_display_name = "You" if message["role"] == "user" else "AI Assistant"
         with st.chat_message(role_display_name):
              # Handle potential None values if history loading failed partially
-             content = message["parts"][0] if message["parts"] and message["parts"][0] else "*message not loaded*"
+             content = message["parts"][0] if message["parts"] and message["parts"][0] else "*message error*"
              st.markdown(content)
 
 
@@ -115,13 +120,15 @@ def show_llm_chat_page(): # Removed db parameter
                      try:
                          st.error(f"Details: {response.json().get('detail', 'No details provided.')}")
                      except: pass
-                     # Remove the user's message if the API call failed? Optional.
+                     # Consider removing the user's failed message for cleaner UI
                      # st.session_state.messages.pop()
 
         except requests.exceptions.RequestException as e:
             st.error(f"Network error communicating with the AI: {e}")
-            # Remove the user's message if the API call failed? Optional.
+            # Consider removing the user's failed message for cleaner UI
             # st.session_state.messages.pop()
-        
-        # We need to rerun to ensure message display updates correctly after API call
-        st.rerun()
+
+        # --- THIS IS THE FIX ---
+        # REMOVED st.rerun() which might cause unexpected state/requests on reload
+        # --- END OF FIX ---
+
