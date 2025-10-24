@@ -80,9 +80,9 @@ def show_main_dashboard(): # Removed db and models parameters
                         st.success(f"### Prediction Result: **{prediction_result_text}**")
                         st.success(f"Confidence Score: **{prediction_score_val*100:.2f}%**")
                         st.info("Your prediction has been saved to your history.")
-                        # Rerun to refresh history? Or use a button? Let's refresh for now.
-                        st.rerun()
-
+                        # --- THIS IS THE FIX ---
+                        # REMOVED st.rerun() which was causing the message to vanish
+                        # --- END OF FIX ---
 
                     elif response.status_code == 400: # Bad Request (e.g., invalid input)
                          st.error(f"Prediction failed: {response.json().get('detail', 'Invalid input.')}")
