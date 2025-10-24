@@ -45,20 +45,16 @@ def show_llm_chat_page():
         return
 
     # --- 2. Initialize Chat History ---
-    # Store history loading status to prevent reloading on every rerun
-    # --- FIX: Initialize history_loaded along with messages ---
     if "messages" not in st.session_state:
         st.session_state.messages = []
-        st.session_state.history_loaded = False # Initialize here
+        st.session_state.history_loaded = False
         st.session_state.history_load_error = None
-    # --- END FIX ---
 
         try:
-            # Only attempt to load if not already loaded
             if not st.session_state.history_loaded:
                 st.write(f"DEBUG: Attempting to GET history from: {chat_history_url}") # DEBUG
                 with st.spinner("Loading chat history..."):
-                    response = requests.get(chat_history_url, headers=headers, timeout=15) # Increased timeout
+                    response = requests.get(chat_history_url, headers=headers, timeout=15)
                     st.write(f"DEBUG: GET /chat status code: {response.status_code}") # DEBUG
                     if response.status_code == 200:
                         history = response.json()
@@ -69,101 +65,79 @@ def show_llm_chat_page():
                                  st.session_state.messages.append({"role": "user", "parts": [user_input]})
                             if llm_response is not None:
                                  st.session_state.messages.append({"role": "model", "parts": [llm_response]})
-                        st.session_state.history_loaded = True # Mark history as loaded
-                        st.session_state.history_load_error = None # Clear previous error on success
+                        st.session_state.history_loaded = True
+                        st.session_state.history_load_error = None
                     elif response.status_code == 405:
                          st.session_state.history_load_error = f"Error loading history: Method Not Allowed (GET request failed to {chat_history_url}). Please check backend/API Gateway configuration."
-                         # Don't display error here, let the block below handle it
                     elif response.status_code == 401:
                          st.session_state.history_load_error = "Authentication failed while loading chat history. Please log in again."
-                         # Don't display error here
-                    elif response.status_code != 404: # Ignore 404
+                    elif response.status_code != 404:
                          st.session_state.history_load_error = f"Could not load chat history (Error: {response.status_code})."
-                         # Don't display error here
-                    else:
-                        # Status is 404, no history exists
-                        st.session_state.history_loaded = True # Mark as loaded (empty)
-                        st.session_state.history_load_error = None # Clear previous error
-
+                    else: # Status is 404
+                        st.session_state.history_loaded = True
+                        st.session_state.history_load_error = None
 
         except requests.exceptions.Timeout:
              st.session_state.history_load_error = "Loading chat history timed out."
         except requests.exceptions.RequestException as e:
             st.session_state.history_load_error = f"Network error loading chat history: {e}"
-        except Exception as e: # Catch any other unexpected errors during init
+        except Exception as e:
             st.session_state.history_load_error = f"An unexpected error occurred during chat initialization: {e}"
-            st.exception(e) # Show traceback for unexpected errors
+            st.exception(e)
 
-
-        # Add welcome message only if loading succeeded and there are no messages
         if st.session_state.history_loaded and not st.session_state.messages and not st.session_state.history_load_error:
              st.session_state.messages.append({"role": "model", "parts": ["Hello! How can I help you with your health and wellness questions today? Remember, I cannot give medical advice."]})
 
-    # --- Display History Loading Error if it occurred ---
-    # Check if history failed to load and display error
+    # --- Display History Loading Error ---
     if not st.session_state.get("history_loaded", False) and st.session_state.get("history_load_error"):
          st.error(st.session_state.history_load_error)
 
-
     # --- 3. Display Chat History ---
-    # Display messages only if history loading didn't fail catastrophically
-    # or if messages already exist from the current session
     if st.session_state.get("history_loaded", False) or st.session_state.messages:
         for message in st.session_state.messages[:]:
             if message["parts"] and message["parts"][0] and is_initial_prompt(message["parts"][0]):
                 continue
-
             role_display_name = "You" if message["role"] == "user" else "AI Assistant"
             with st.chat_message(role_display_name):
                  content = message["parts"][0] if message["parts"] and message["parts"][0] else "*message error*"
                  st.markdown(content)
 
-
     # --- 4. Handle New User Input ---
     if prompt := st.chat_input("Ask a health-related question..."):
-        # Append user message optimistically
         st.session_state.messages.append({"role": "user", "parts": [prompt]})
-        # Rerun immediately to display the user's message
-        st.rerun()
+        st.rerun() # Rerun to display user message immediately
 
-    # --- 5. Check if the last message is from the user and needs processing ---
-    # This logic runs after the rerun triggered by chat_input
-    # Also check if history loading is complete or if there was no loading error
+    # --- 5. Check if the last message needs processing ---
     needs_processing = (
         st.session_state.messages and
         st.session_state.messages[-1]["role"] == "user" and
-        len(st.session_state.messages) > 1 and # Ensure there's more than just the user message
-        st.session_state.messages[-2]["role"] != "user" # Check if previous wasn't also user (API call pending)
+        (len(st.session_state.messages) == 1 or st.session_state.messages[-2]["role"] == "model") # Process if it's the first message or follows a model response
     )
 
+    api_call_succeeded = False # Flag to track API call outcome
+
     if needs_processing:
-        # Get the actual last user prompt that needs a response
         last_user_prompt = st.session_state.messages[-1]["parts"][0]
         payload = {"prompt": last_user_prompt}
-        api_error_message = None # To store potential error message
+        api_error_message = None
 
         try:
             with st.spinner("AI is thinking..."):
                 st.write(f"DEBUG: POSTing to {chat_api_url} with payload: {json.dumps(payload)}") # DEBUG
-                response = requests.post(chat_api_url, headers=headers, json=payload, timeout=60) # Increased timeout
+                response = requests.post(chat_api_url, headers=headers, json=payload, timeout=60)
                 st.write(f"DEBUG: POST /chat status code: {response.status_code}") # DEBUG
 
                 if response.status_code == 200:
                     response_data = response.json()
                     response_text = response_data.get("response", "Error: No response text found.")
-                    # Append AI response
                     st.session_state.messages.append({"role": "model", "parts": [response_text]})
-                    # Clear any previous API error message
                     st.session_state.pop("chat_api_error", None)
-
-                else: # Handle API errors
+                    api_call_succeeded = True # Mark as success
+                else:
                      error_detail = "No details provided."
-                     try:
-                         error_detail = response.json().get('detail', error_detail)
-                     except requests.exceptions.JSONDecodeError:
-                         error_detail = response.text
+                     try: error_detail = response.json().get('detail', error_detail)
+                     except requests.exceptions.JSONDecodeError: error_detail = response.text
                      api_error_message = f"Error getting AI response (Status: {response.status_code}). Detail: {error_detail}"
-                     # Store error to persist it
                      st.session_state.chat_api_error = api_error_message
 
         except requests.exceptions.Timeout:
@@ -175,15 +149,15 @@ def show_llm_chat_page():
         except Exception as e:
              api_error_message = f"An unexpected error occurred: {e}"
              st.session_state.chat_api_error = api_error_message
-             st.exception(e) # Show traceback for unexpected errors
+             st.exception(e)
 
-        # Rerun AFTER processing API response (success or error) to update display
-        st.rerun()
+        # --- FIX: Only rerun on SUCCESS ---
+        if api_call_succeeded:
+            st.rerun() # Rerun AFTER successful response to update display
+        # --- END FIX ---
 
-    # --- Display persistent API error if one occurred ---
-    # Check session state for the error and display it
+    # --- Display persistent API error ---
     if st.session_state.get("chat_api_error"):
         st.error(st.session_state.chat_api_error)
-        # Clear the error once displayed so it doesn't stick forever
-        st.session_state.pop("chat_api_error", None)
+        st.session_state.pop("chat_api_error", None) # Clear after showing
 
