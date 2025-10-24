@@ -101,9 +101,8 @@ def show_main_dashboard(): # Removed db and models parameters
                              st.success(f"### Prediction Result: **{prediction_result_text}**")
                              st.success(f"Confidence Score: **{prediction_score_val*100:.2f}%**")
                              st.info("Your prediction has been saved to your history.")
-                         # Clear form values from session state after successful submission? Optional.
-                         # for key in ["form_age", "form_height", "form_weight", "form_family_history", "form_pregnancies"]:
-                         #     if key in st.session_state: del st.session_state[key]
+                         # We set a flag to indicate a refresh might be needed
+                         st.session_state.history_needs_refresh = True
 
                      elif response.status_code == 400:
                           prediction_result_placeholder.error(f"Prediction failed: {response.json().get('detail', 'Invalid input.')}")
@@ -120,30 +119,38 @@ def show_main_dashboard(): # Removed db and models parameters
 
     # --- History Display ---
     st.header("Your Prediction History")
-    st.write("Attempting to load history...") # DEBUG MESSAGE
+
+    # --- ADD REFRESH BUTTON ---
+    # Button to explicitly reload history data
+    if st.button("Refresh History"):
+        # Clear any cached data if necessary (optional)
+        # st.cache_data.clear() # If using st.cache_data for history
+        st.rerun() # Rerun the script to trigger the fetch below
+
+    # Remove the automatic debug message
+    # st.write("Attempting to load history...")
 
     readings_url = f"{API_BASE_URL}/api/v1/readings"
     history_data = []
-    error_loading_history = None # Track errors specifically
+    error_loading_history = None
 
+    # This block will now run every time the page loads or Refresh is clicked
     try:
         with st.spinner("Loading prediction history..."):
             response = requests.get(readings_url, headers=headers)
-            st.write(f"GET /readings status code: {response.status_code}") # DEBUG MESSAGE
+            # st.write(f"GET /readings status code: {response.status_code}") # Keep for debug if needed
 
             if response.status_code == 200:
                 readings = response.json()
-                st.write(f"Received {len(readings)} readings from API.") # DEBUG MESSAGE
+                # st.write(f"Received {len(readings)} readings from API.")
                 if readings:
                     if not DATEUTIL_AVAILABLE:
                          st.error("Dependency missing: Please add 'python-dateutil' to your root requirements.txt to display dates correctly.")
-                         history_data = readings # Show raw if parsing fails
+                         history_data = readings
                     else:
                         try:
-                            st.write("Attempting to parse and sort history...") # DEBUG MESSAGE
-                            # Sort readings using parsed timestamps
+                            # st.write("Attempting to parse and sort history...")
                             sorted_readings = sorted(readings, key=lambda r: parser.parse(r.get('timestamp', '1970-01-01T00:00:00Z')), reverse=True)
-
                             history_data = [
                                 {
                                     "Date": parser.parse(r.get('timestamp', '')).strftime("%d-%m-%Y %H:%M") if r.get('timestamp') else "N/A",
@@ -154,19 +161,19 @@ def show_main_dashboard(): # Removed db and models parameters
                                 }
                                 for r in sorted_readings
                             ]
-                            st.write("History processed successfully.") # DEBUG MESSAGE
+                            # st.write("History processed successfully.")
                         except Exception as e:
                             st.error(f"Error processing history data: {e}")
-                            st.exception(e) # Show full traceback for debugging
+                            st.exception(e)
                             error_loading_history = f"Error processing history: {e}"
-                            history_data = readings # Show raw on processing error
+                            history_data = readings
 
             elif response.status_code == 401:
                  st.error("Authentication failed while fetching history.")
                  error_loading_history = "Authentication failed"
             elif response.status_code == 404:
-                 st.write("No prediction history found (404).") # Info message, not error
-                 error_loading_history = None # Clear potential previous error
+                 # st.write("No prediction history found (404).") # Less prominent message now
+                 error_loading_history = None
             else:
                  st.warning(f"Could not load prediction history (Error: {response.status_code}).")
                  error_loading_history = f"API Error {response.status_code}"
@@ -174,7 +181,7 @@ def show_main_dashboard(): # Removed db and models parameters
     except requests.exceptions.RequestException as e:
         st.warning(f"Network error loading prediction history: {e}")
         error_loading_history = f"Network Error: {e}"
-    except Exception as e: # Catch any other unexpected errors
+    except Exception as e:
         st.error(f"An unexpected error occurred while loading history: {e}")
         st.exception(e)
         error_loading_history = f"Unexpected Error: {e}"
@@ -182,17 +189,17 @@ def show_main_dashboard(): # Removed db and models parameters
 
     # Display the table or appropriate message
     if history_data:
-        st.write("Displaying history table...") # DEBUG MESSAGE
+        # st.write("Displaying history table...")
         try:
             df = pd.DataFrame(history_data)
-            st.dataframe(df.set_index("Date")) # Set Date as index for better display
+            st.dataframe(df.set_index("Date"))
         except Exception as e:
              st.error(f"Error displaying history dataframe: {e}")
-             st.write("Raw history data:", history_data) # Show raw if df fails
+             st.write("Raw history data:", history_data)
     elif error_loading_history:
          st.warning(f"Could not display history due to previous error: {error_loading_history}")
     else:
-        # Only show this if there was no error and no data
-        if response.status_code == 404 or (response.status_code == 200 and not readings) :
+        # Only show this if there was truly no history after a successful load attempt
+        if 'response' in locals() and (response.status_code == 404 or (response.status_code == 200 and not readings)):
              st.write("You have no prediction history yet.")
 
