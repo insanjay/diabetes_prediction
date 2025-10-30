@@ -5,7 +5,7 @@
 
 1. [Overview](#-overview)
 2. [Tech Stack](#-tech-stack)
-3. [Local Setup](#-local-setup-and-installation)
+3. [Local Setup](#-local-setup)
 4. [Project Roadmap](#-project-roadmap-future-enhancements)
 5. [Author Details](#-author)
 
@@ -53,7 +53,7 @@ To use the live application, follow the links below:
 |Frontend|Streamlit|
 |AI/ML|Scikit-learn, XGBoost, Hugging Face Inference API|
 
-## ⚙️ Local Setup and Installation
+## ⚙️ Local Setup
 
 This project is configured to run entirely locally using Docker Compose for a one-command setup of the Backend API and PostgreSQL database.
 
