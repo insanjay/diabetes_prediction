@@ -104,7 +104,7 @@ The current version provides a stable, deployed foundation. Future development g
 ## Author
 
 - **Sanjay Kumar**
-- [E-mail](insanjay.work@gmail.com)
+- [E-mail](mailto:insanjay.work@gmail.com)
 - [LinkedIn](https://www.linkedin.com/in/insanjay)
 
 📄 License
