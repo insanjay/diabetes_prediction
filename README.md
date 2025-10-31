@@ -1,5 +1,6 @@
 # DiabetaPredict: Cloud-Native Diabetic Risk Assessment Platform
 
+> **Future Feature:** The integrated AI Chatbot functionality is **scheduled for an upcoming release** and is not yet available.
 
 ### Table of Contents
 
