@@ -36,8 +36,8 @@ To see the demo of the working application follow the link below:
 
 To use the live application, follow the links below:
 
-- [Monolithic - Fully functional](link)
-- [Microservices Base - Partially Functional](link)
+- [Monolithic - Fully functional](https://heartsafev3.streamlit.app/)
+- [Microservices Base - Partially Functional](https://heartsafev3-1.streamlit.app/)
 
 ---
 
