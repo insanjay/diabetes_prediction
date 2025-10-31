@@ -3,11 +3,11 @@
 
 ### Table of Contents
 
-1. [Overview](#-overview)
-2. [Tech Stack](#-tech-stack)
-3. [Local Setup](#-local-setup-and-installation)
-4. [Project Roadmap](#-project-roadmap-future-enhancements)
-5. [Author Details](#-author)
+1. [Overview](#overview)
+2. [Tech Stack](#tech-stack)
+3. [Local Setup](#local-setup-and-installation)
+4. [Project Roadmap](#project-roadmap-future-enhancements)
+5. [Author Details](#author)
 
 
 
