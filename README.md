@@ -5,9 +5,9 @@
 
 1. [Overview](#-overview)
 2. [Tech Stack](#-tech-stack)
-3. [Local Setup](#%e2%9a%99%ef%b8%8f-local-setup-and-installation)
-4. [Project Roadmap](#%e2%9a%92%ef%b8%8f-project-roadmap-future-enhancements)
-5. [Author Details](#%f0%9f%91%a8%e2%80%8d%f0%9f%92%bb-author)
+3. [Local Setup](#-local-setup-and-installation)
+4. [Project Roadmap](#-project-roadmap-future-enhancements)
+5. [Author Details](#-author)
 
 
 
@@ -15,7 +15,7 @@
 
 [ML-Workflow](https://github.com/insanjay/diabetes_prediction_workflow/tree/v2)
 
-## 🌟 Overview
+## Overview
 
 DiabetaPredict is a high-availability web application designed to provide users with a risk assessment for diabetes based on key health metrics.
 
@@ -43,7 +43,7 @@ To use the live application, follow the links below:
 
 **Note**: The Monolithic application has all the working functionalities (check the project SRS table no. x), but the Microservices base has only Auth and the Prediction Function working.
 
-## 💻 Tech Stack
+## Tech Stack
 
 |Category | Technologies Used|
 |---------|------------------|
@@ -53,7 +53,7 @@ To use the live application, follow the links below:
 |Frontend|Streamlit|
 |AI/ML|Scikit-learn, XGBoost, Hugging Face Inference API|
 
-## ⚙️ Local Setup and Installation
+## Local Setup and Installation
 
 This project is configured to run entirely locally using Docker Compose for a one-command setup of the Backend API and PostgreSQL database.
 
@@ -91,7 +91,7 @@ docker-compose up --build -d
 - Backend API: `http://localhost:8000/docs` (FastAPI Swagger UI)
 - Streamlit Frontend: Run the Streamlit app locally (assuming Streamlit is run outside the container, connecting to the API via `http://localhost:8000`).
 
-## 🛠️ Project Roadmap Future Enhancements
+## Project Roadmap Future Enhancements
 
 The current version provides a stable, deployed foundation. Future development goals include:
 - Full CI/CD Pipeline: Implementing automated testing and deployment workflows using GitHub Actions.
@@ -101,7 +101,7 @@ The current version provides a stable, deployed foundation. Future development g
 
 
 
-## 👨‍💻 Author
+## Author
 
 - **Sanjay Kumar**
 - [E-mail](insanjay.work@gmail.com)
