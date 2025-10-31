@@ -26,7 +26,7 @@ This project was developed to demonstrate skills in Python Backend Development, 
 To read more about this project follow the links below:
 
 - [LinkedIn Post](link)
-- [Medium Blog]([link](https://medium.com/@insanjay.work/the-developers-log-scaling-a-python-ai-service-past-aws-lambda-s-250mb-limit-b841918fd7f9))
+- [Medium Blog]((https://medium.com/@insanjay.work/the-developers-log-scaling-a-python-ai-service-past-aws-lambda-s-250mb-limit-b841918fd7f9))
 - [Project’s SRS](link)
 ---
 To see the demo of the working application follow the link below:
