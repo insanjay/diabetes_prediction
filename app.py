@@ -28,9 +28,9 @@ def load_models_and_preprocessors():
     """
     try:
         # Load male model components
-        with open("models/male_model/diabetes_stacking_ensemble_model.pkl", "rb") as f:
+        with open("models/male_model/male_diabetes_model.pkl", "rb") as f:
             male_model = joblib.load(f)
-        with open("models/male_model/diabetes_label_encoder_final.pkl", "rb") as f:
+        with open("models/male_model/male_label_encoder.pkl", "rb") as f:
             male_encoder = joblib.load(f)
         
         # Load female model components
