@@ -69,10 +69,10 @@ else:
     elif page == "AI Health Chat":
         show_llm_chat_page(db)
 
-    # --- THIS IS THE FIX ---
-    # We add a unique key to the logout button to prevent the duplicate ID error.
-    if st.sidebar.button("Logout", key="main_logout_button"):
-        for key in st.session_state.keys():
-            del st.session_state[key]
+    # # --- THIS IS THE FIX ---
+    # # We add a unique key to the logout button to prevent the duplicate ID error.
+    # if st.sidebar.button("Logout", key="main_logout_button"):
+    #     for key in st.session_state.keys():
+    #         del st.session_state[key]
         st.rerun()
 
