@@ -113,8 +113,14 @@ def show_main_dashboard(db, models):
                     models=models
                 )
                 
-                st.success(f"### Prediction Result: **{prediction_result_text}**")
-                st.success(f"Confidence Score: **{prediction_score_val*100:.2f}%**")
+                # Show colored prediction result
+                if prediction_result_text.lower() == "diabetic":
+                    st.error(f"### Prediction Result: **{prediction_result_text}**")
+                else:
+                    st.success(f"### Prediction Result: **{prediction_result_text}**")
+
+                # Confidence score stays green (success)
+                st.info(f"Confidence Score: **{prediction_score_val*100:.2f}%**")
 
                 # Save the reading to the database
                 reading_data = schemas.HealthReadingCreate(
