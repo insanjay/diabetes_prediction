@@ -110,6 +110,9 @@ def show_main_dashboard(db, models):
     Displays the main prediction form and user history dashboard.
     """
     st.sidebar.title(f"Welcome, {st.session_state.user_name}")
+    
+    # LOGOUT BUTTON LOGIC
+    # If you see two buttons, delete the one in your 'main.py' file.
     if st.sidebar.button("Logout"):
         # Clear all session state keys to log out
         for key in st.session_state.keys():
@@ -158,8 +161,13 @@ def show_main_dashboard(db, models):
                 else:
                     st.success(f"### Prediction Result: **{prediction_result_text}**")
 
-                # Confidence score stays green (success)
-                st.info(f"Estimated Diabetes Risk: **{prediction_score_val*100:.2f}%**")
+                # --- CONDITIONAL OUTPUT TEXT (The Fix) ---
+                if st.session_state.user_gender == "Male":
+                    # Male Model uses "Risk Score" (Lower is better)
+                    st.info(f"Estimated Diabetes Risk: **{prediction_score_val*100:.2f}%**")
+                else:
+                    # Female Model uses "Confidence" (Higher is better)
+                    st.info(f"Confidence Score: **{prediction_score_val*100:.2f}%**")
 
                 # Save the reading to the database
                 reading_data = schemas.HealthReadingCreate(
