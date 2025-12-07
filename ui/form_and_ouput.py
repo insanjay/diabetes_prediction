@@ -109,17 +109,18 @@ def show_main_dashboard(db, models):
     """
     Displays the main prediction form and user history dashboard.
     """
-    st.sidebar.title(f"Welcome, {st.session_state.user_name}")
+    pass
+    # st.sidebar.title(f"Welcome, {st.session_state.user_name}")
     
-    # LOGOUT BUTTON LOGIC
-    # If you see two buttons, delete the one in your 'main.py' file.
-    if st.sidebar.button("Logout"):
-        # Clear all session state keys to log out
-        for key in st.session_state.keys():
-            del st.session_state[key]
-        st.rerun()
+    # # LOGOUT BUTTON LOGIC
+    # # If you see two buttons, delete the one in your 'main.py' file.
+    # if st.sidebar.button("Logout"):
+    #     # Clear all session state keys to log out
+    #     for key in st.session_state.keys():
+    #         del st.session_state[key]
+    #     st.rerun()
 
-    st.title("Diabetic Risk Prediction Dashboard")
+    # st.title("Diabetic Risk Prediction Dashboard")
 
     # --- Prediction Form ---
     st.header("Make a New Prediction")
