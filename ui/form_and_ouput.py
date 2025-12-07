@@ -159,7 +159,7 @@ def show_main_dashboard(db, models):
                     st.success(f"### Prediction Result: **{prediction_result_text}**")
 
                 # Confidence score stays green (success)
-                st.info(f"Confidence Score: **{prediction_score_val*100:.2f}%**")
+                st.info(f"Estimated Diabetes Risk: **{prediction_score_val*100:.2f}%**")
 
                 # Save the reading to the database
                 reading_data = schemas.HealthReadingCreate(
