@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np  # Added numpy for the array handling in logic
 from database import schemas, crud
 
 # Note: We need to pass the loaded models into the main function.
@@ -10,6 +11,7 @@ from database import schemas, crud
 def get_prediction(gender: str, input_data: dict, models: tuple):
     """
     Selects the correct model, preprocesses data, and returns the prediction.
+    Now includes Hybrid Guardrails for Male predictions.
     """
     male_model, male_encoder, female_model, female_scaler = models
     input_df = pd.DataFrame([input_data])
@@ -21,11 +23,48 @@ def get_prediction(gender: str, input_data: dict, models: tuple):
         male_features = ["age", "bmi", "family_diabetes"]
         input_df_male = input_df[male_features]
         
-        prediction = male_model.predict(input_df_male)
-        probability = male_model.predict_proba(input_df_male)
+        # --- 1. Get the Raw Model Probability ---
+        # We need the probability of class 1 (Diabetes)
+        raw_probability = male_model.predict_proba(input_df_male)[0][1]
         
-        prediction_text = male_encoder.inverse_transform(prediction)[0] + 't Diabetic'
-        prediction_score = probability[0][prediction[0]]
+        # --- 2. Apply Medical Guardrails (The Fix) ---
+        # Extract values for logic check
+        age_val = input_data['age']
+        bmi_val = input_data['bmi']
+        fam_val = input_data['family_diabetes']
+        
+        penalty = 0.0
+        
+        # RULE A: BMI Penalty (Add 1.5% risk for every point over 25)
+        if bmi_val > 25:
+            excess_bmi = bmi_val - 25
+            penalty += (excess_bmi * 0.015)
+            
+        # RULE B: Age Penalty (Add 0.5% risk for every year over 50)
+        if age_val > 50:
+            excess_age = age_val - 50
+            penalty += (excess_age * 0.005)
+            
+        # RULE C: Family History Penalty
+        if fam_val == 1:
+            penalty += 0.10
+
+        # --- 3. Calculate Final Adjusted Score ---
+        final_prob = raw_probability + penalty
+        
+        # Cap at 99% to avoid overflow
+        final_prob = min(final_prob, 0.99)
+        
+        # --- 4. Determine Output based on Threshold ---
+        # Using the optimized threshold of 0.4
+        threshold = 0.4
+        
+        if final_prob >= threshold:
+            prediction_text = "Diabetic"
+        else:
+            prediction_text = "Not Diabetic"
+            
+        prediction_score = final_prob
 
     elif gender == "Female":
         # As per the logic, map family_diabetes to DiabetesPedigreeFunction
